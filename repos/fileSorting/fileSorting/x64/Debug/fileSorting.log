@@ -1,0 +1,3 @@
+﻿  fileSorting.cpp
+C:\Users\stupa\source\repos\fileSorting\fileSorting\fileSorting.cpp(278,12): warning C4244: аргумент: преобразование "time_t" в "unsigned int", возможна потеря данных
+  fileSorting.vcxproj -> C:\Users\stupa\source\repos\fileSorting\x64\Debug\fileSorting.exe
