@@ -1,5 +1,5 @@
 #pragma once
-#include "../../bintreeSearch/bintree/BinaryTree.h"
+#include "BinaryTree.h"
 #include <iostream>
 #include <vector>
 #include <stack>
@@ -16,6 +16,7 @@ public:
 	int max() const;
 
 	using BinaryTree::add;
+	/*void add(int key);*/
 	bool remove(const int key);
 
 	Node* find(const int key) const;
@@ -30,29 +31,9 @@ private:
 	int max(Node* root) const;
 
 	Node* add(Node* root, const int key);
-	void remove(Node* node, Node* node2);
+	void _remove(Node* node, Node* node2);
 	Node* findReplacementNode(Node* root) const;
 
 	Node* find(Node* root, const int key) const;
 	int level(const Node* root, const int key, const int level_) const;
-};
-
-class SearchTreeTester : public BinaryTreeTester {
-public:
-	SearchTreeTester(const bool useConsoleOutput, const bool enableAllTests = true);
-	~SearchTreeTester() override = default;
-
-protected:
-	BinaryTree* allocateTree() override;
-	void check_addAndCount(const BinaryTree* tree, const int size) override;
-	void check_remove(BinaryTree* tree, const int key,
-		const bool result, const int size) override;
-	void check_clear(const BinaryTree* tree, const int size) override;
-	void check_assign(const BinaryTree* first,
-		const BinaryTree* second) override;
-
-	void assign() override;
-private:
-	bool isSearchTree(const BinaryTree* tree);
-	void treeKeysLnr(BinaryTree::Node* root, std::vector<int>& keys);
 };
