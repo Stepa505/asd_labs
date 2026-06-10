@@ -1,0 +1,3 @@
+﻿  main.cpp
+C:\Users\stupa\source\repos\huffman\huffman\main.cpp(42,27): warning C4018: <: несоответствие типов со знаком и без знака
+  huffman.vcxproj -> C:\Users\stupa\source\repos\huffman\x64\Debug\huffman.exe

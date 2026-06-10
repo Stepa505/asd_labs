@@ -1,0 +1,5 @@
+﻿  main.cpp
+C:\Users\stupa\source\repos\hashtable\hashtable\HashTable.h(39,33): warning C4244: аргумент: преобразование "double" в "const int", возможна потеря данных
+  (компиляция исходного файла "main.cpp")
+  
+  hashtable.vcxproj -> C:\Users\stupa\source\repos\hashtable\x64\Debug\hashtable.exe
