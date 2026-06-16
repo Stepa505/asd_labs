@@ -4,221 +4,280 @@
 #include <list>
 #include <cmath>
 #include <algorithm>
+#include <stdexcept>
 
 static int myNumber = 17;
 
-static int mod(const int K, const int N) {
-	int result = K % N;
-	return (result < 0 ? (result * (-1)) : result);
+static int mod(const int K, int N) {
+    if (N <= 0) {
+        N *= -1;
+    }
+    long long result = static_cast<long long>(K) % N;
+    return static_cast<int>(result < 0 ? -result : result);
 }
 
 class IHashFunction {
 public:
-	virtual int hash(const int key, const int size) const = 0;
-	virtual IHashFunction* clone() const = 0;
+    virtual int hash(const int key, const int size) const = 0;
+    virtual IHashFunction* clone() const = 0;
+    virtual ~IHashFunction() = default;
 };
 
 class HashFunction1 : public IHashFunction {
 public:
-	int hash(const int key, const int size) const override {
-		return mod(mod(key, size) + c + d, size);
-	}
+    int hash(const int key, const int size) const override {
+        if (size <= 0) {
+            std::cerr << "Error in HashFunction1: Size <= 0!!!\n";
+            return 0;
+        }
+        return mod(mod(key, size) + c + d, size);
+    }
 
-	HashFunction1* clone() const override {
-		return new HashFunction1();
-	}
+    HashFunction1* clone() const override {
+        return new HashFunction1();
+    }
 
 private:
-	int c = mod(myNumber, 5),
-		d = mod(myNumber, 7);
+    int c = mod(myNumber, 5);
+    int d = mod(myNumber, 7);
 };
 
 class HashFunction2 : public IHashFunction {
 public:
-	int hash(const int key, const int size) const override {
-		return mod(mod(key, size) * a * size, size);
-	}
+    int hash(const int key, const int size) const override {
+        if (size <= 0) {
+            std::cerr << "Error in HashFunction2: Size <= 0!!!\n";
+            return 0;
+        }
+        
+        double fraction = key * a - std::floor(key * a);
+        return static_cast<int>(fraction * size);
+    }
 
-	HashFunction2* clone() const override {
-		return new HashFunction2();
-	}
+    HashFunction2* clone() const override {
+        return new HashFunction2();
+    }
+
 private:
-	const double a = (std::sqrt(5) - 1) / 2;
+    const double a = (std::sqrt(5) - 1) / 2;
 };
 
 class HashFunction3 : public IHashFunction {
 public:
-	int hash(const int key, const int size) const override {
-		return mod(mod(key, size) + 1 * (1 + mod(key, size - 2)), size);
-	}
+    int hash(const int key, const int size) const override {
+        if (size <= 0) {
+            std::cerr << "Error in HashFunction3: Size <= 0!!!\n";
+            return 0;
+        }
+        if (size <= 2) {
+            return mod(key, size);
+        }
+        return mod(mod(key, size) + 1 + mod(key, size - 2), size);
+    }
 
-	HashFunction3* clone() const override {
-		return new HashFunction3();
-	}
+    HashFunction3* clone() const override {
+        return new HashFunction3();
+    }
 };
 
 template<typename T>
 class HashTable {
 public:
-	static IHashFunction* getDefaultHashFunction() {
-		static HashFunction1 hashFunction;
-		return &hashFunction;
-	}
-	HashTable(int size = 0, IHashFunction* function = getDefaultHashFunction());
-	HashTable(const HashTable& other);
-	~HashTable();
+    static IHashFunction* getDefaultHashFunction() {
+        static HashFunction1 hashFunction;
+        return &hashFunction;
+    }
 
-	void resize(const int size);
-	int size() const;
+    HashTable(int size = 0, IHashFunction* function = nullptr);
+    HashTable(const HashTable& other);
+    ~HashTable();
 
-	void print() const;
+    void resize(const int size);
+    int size() const { return m_size; }
 
-	void add(const int key, const T& value);
-	void remove(const int key);
-	bool contains(const int key) const;
+    void print() const;
 
-	void swap(HashTable& other);
-	void changeHashFunction(IHashFunction* function);
+    bool add(const int key, const T& value);
+    bool remove(const int key);
+    bool contains(const int key) const;
 
-	HashTable& operator = (const HashTable& other);
-	T& operator [](const int key);
+    void swap(HashTable& other);
+    void changeHashFunction(IHashFunction* function);
 
-	const std::vector<std::list<std::pair<int, T>>>& table() const;
+    HashTable& operator=(const HashTable& other);
+    T& operator[](const int key);
+    const T& operator[](const int key) const;
+
+    const std::vector<std::list<std::pair<int, T>>>& table() const { return m_hashTable; }
 
 private:
-	std::vector<std::list<std::pair<int, T>>> m_hashTable;
-	int m_size;
-	IHashFunction* m_function;
+    std::vector<std::list<std::pair<int, T>>> m_hashTable;
+    int m_size;
+    IHashFunction* m_function;
+
+    void rehash(int newSize);
 };
 
 template<typename T>
 HashTable<T>::HashTable(int size, IHashFunction* function)
-	: m_size(size), m_function(function) {
-	m_hashTable.resize(m_size);
+    : m_size(size > 0 ? size : 0), m_function(nullptr) {
+    if (function) {
+        m_function = function->clone();
+    }
+    else {
+        m_function = getDefaultHashFunction()->clone();
+    }
+    m_hashTable.resize(m_size > 0 ? m_size : 0);
 }
 
 template<typename T>
 HashTable<T>::HashTable(const HashTable& other)
-	: m_hashTable(other.m_hashTable), m_size(other.m_size)
-	, m_function(other.m_function->clone()) {
+    : m_hashTable(other.m_hashTable), m_size(other.m_size)
+    , m_function(other.m_function ? other.m_function->clone() : nullptr) {
 }
 
 template<typename T>
 HashTable<T>::~HashTable() {
+    delete m_function;
 }
 
 template<typename T>
-void HashTable<T>::resize(const int size) {
-	if (size == m_size) return;
+void HashTable<T>::rehash(int newSize) {
+    if (newSize <= 0) {
+        m_hashTable.clear();
+        m_size = 0;
+        return;
+    }
 
-	std::vector<std::list<std::pair<int, T>>> new_hashTable(size);
-	for (int i = 0; i < m_size; i++) {
-		for (auto it = m_hashTable[i].begin(); it != m_hashTable[i].end(); ++it) {
-			int index = m_function->hash(it->first, size);
-			new_hashTable[index].push_back(*it);
-		}
-	}
-
-	m_size = size;
-	m_hashTable = new_hashTable;
+    std::vector<std::list<std::pair<int, T>>> newTable(newSize);
+    for (int i = 0; i < m_size; ++i) {
+        for (auto& pair : m_hashTable[i]) {
+            int newIndex = m_function->hash(pair.first, newSize);
+            newTable[newIndex].push_back(pair);
+        }
+    }
+    m_hashTable = std::move(newTable);
+    m_size = newSize;
 }
 
 template<typename T>
-int HashTable<T>::size() const {
-	return m_size;
-}
-
-template<typename T>
-void HashTable<T>::add(const int key, const T& value) {
-	if (contains(key)) return;
-
-	if (m_size == 0) return;
-
-	int index = m_function->hash(key, m_size);
-	m_hashTable[index].push_back(std::make_pair(key, value));
-}
-
-template<typename T>
-void HashTable<T>::remove(const int key) {
-	if (m_size == 0) return;
-	int index = m_function->hash(key, m_size);
-	for (auto it = m_hashTable[index].begin(); it != m_hashTable[index].end(); ++it) {
-		if (it->first == key) {
-			m_hashTable[index].erase(it);
-			return;
-		}
-	}
-}
-
-template<typename T>
-bool HashTable<T>::contains(const int key) const {
-	if (m_size == 0) return false;
-	int index = m_function->hash(key, m_size);
-	for (auto it = m_hashTable[index].begin(); it != m_hashTable[index].end(); ++it)
-		if (it->first == key)
-			return true;
-
-	return false;
+void HashTable<T>::resize(int size) {
+    if (size == m_size) return;
+    if (size < 0) {
+        size *= -1;
+    }
+    rehash(size);
 }
 
 template<typename T>
 void HashTable<T>::print() const {
-	for (int i = 0; i < m_size; ++i) {
-		std::cout << "[" << i << "]: ";
-		for (auto it = m_hashTable[i].begin(); it != m_hashTable[i].end(); ++it)
-			std::cout << "(" << it->first << ", " << it->second << ") ";
+    for (int i = 0; i < m_size; ++i) {
+        std::cout << "[" << i << "]: ";
+        for (auto& pair : m_hashTable[i]) {
+            std::cout << "(" << pair.first << ", " << pair.second << ") ";
+        }
+        std::cout << std::endl;
+    }
+}
 
-		std::cout << std::endl;
-	}
+template<typename T>
+bool HashTable<T>::add(const int key, const T& value) {
+    if (m_size == 0) return false;
+    if (contains(key)) return false;
+
+    int index = m_function->hash(key, m_size);
+    m_hashTable[index].push_back(std::make_pair(key, value));
+    return true;
+}
+
+template<typename T>
+bool HashTable<T>::remove(const int key) {
+    if (m_size == 0) return false;
+    int index = m_function->hash(key, m_size);
+    auto& bucket = m_hashTable[index];
+    for (auto it = bucket.begin(); it != bucket.end(); ++it) {
+        if (it->first == key) {
+            bucket.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
+template<typename T>
+bool HashTable<T>::contains(const int key) const {
+    if (m_size == 0) return false;
+    int index = m_function->hash(key, m_size);
+    for (auto& pair : m_hashTable[index]) {
+        if (pair.first == key) return true;
+    }
+    return false;
 }
 
 template<typename T>
 void HashTable<T>::swap(HashTable<T>& other) {
-	std::swap(m_hashTable, other.m_hashTable);
-	std::swap(m_size, other.m_size);
-	std::swap(m_function, other.m_function);
+    std::swap(m_hashTable, other.m_hashTable);
+    std::swap(m_size, other.m_size);
+    std::swap(m_function, other.m_function);
 }
 
 template<typename T>
 void HashTable<T>::changeHashFunction(IHashFunction* newFunction) {
-	if (!newFunction) return;
+    if (!newFunction) return;
+    if (m_size <= 0) {
+        delete m_function;
+        m_function = newFunction->clone();
+        return;
+    }
 
-	std::vector<std::list<std::pair<int, T>>> newTable(m_size);
-	for (int i = 0; i < m_size; i++) {
-		for (auto it = m_hashTable[i].begin(); it != m_hashTable[i].end(); ++it) {
-			int newIndex = newFunction->hash(it->first, m_size);
-			newTable[newIndex].push_back(*it);
-		}
-	}
-
-	m_function = newFunction;
-	m_hashTable = newTable;
+    IHashFunction* cloned = newFunction->clone();
+    std::vector<std::list<std::pair<int, T>>> newTable(m_size);
+    for (int i = 0; i < m_size; ++i) {
+        for (auto& pair : m_hashTable[i]) {
+            int newIndex = cloned->hash(pair.first, m_size);
+            newTable[newIndex].push_back(pair);
+        }
+    }
+    delete m_function;
+    m_function = cloned;
+    m_hashTable = std::move(newTable);
 }
 
 template<typename T>
-HashTable<T>& HashTable<T>::operator = (const HashTable& other) {
-	if (this != &other) {
-		m_size = other.m_size;
-		delete m_function;
-		m_hashTable = other.m_hashTable;
-		m_function = other.m_function->clone();
-	}
-
-	return *this;
+HashTable<T>& HashTable<T>::operator=(const HashTable& other) {
+    if (this != &other) {
+        HashTable temp(other);
+        swap(temp);
+    }
+    return *this;
 }
 
 template<typename T>
-T& HashTable<T>::operator [](const int key) {
-	int index = m_function->hash(key, m_size);
-	for (auto it = m_hashTable[index].begin(); it != m_hashTable[index].end(); ++it)
-		if (it->first == key)
-			return it->second;
-
-	this->add(key, T());
-	return m_hashTable[index].back().second;
+T& HashTable<T>::operator[](const int key) {
+    if (m_size == 0) {
+        resize(1);
+    }
+    int index = m_function->hash(key, m_size);
+    for (auto& pair : m_hashTable[index]) {
+        if (pair.first == key) {
+            return pair.second;
+        }
+    }
+    
+    m_hashTable[index].push_back(std::make_pair(key, T()));
+    return m_hashTable[index].back().second;
 }
 
 template<typename T>
-const std::vector<std::list<std::pair<int, T>>>& HashTable<T>::table() const {
-	return m_hashTable;
+const T& HashTable<T>::operator[](const int key) const {
+    if (m_size == 0) {
+        throw std::out_of_range("HashTable is empty");
+    }
+    int index = m_function->hash(key, m_size);
+    for (auto& pair : m_hashTable[index]) {
+        if (pair.first == key) {
+            return pair.second;
+        }
+    }
+    throw std::out_of_range("Key not found");
 }
